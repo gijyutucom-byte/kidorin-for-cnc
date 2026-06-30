@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STL to 木取り図作成「きどりんfor CNC」by Mura-lab</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .tool-settings {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 5px;
+      background-color: #f8f9fa;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+    }
+    .tool-settings label {
+      font-size: 12px;
+      margin: 0;
+      font-weight: bold;
+      color: #333;
+    }
+    .tool-settings input {
+      width: 55px;
+      padding: 4px;
+      text-align: right;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="title-row">
+  <img src="kidorin.png" alt="きどりん" class="app-icon" onerror="this.style.display='none'">
+  <div class="title-text">
+    <h1>STL to 木取り図作成「きどりんfor CNC」</h1>
+    <div id="docTitle" class="doc-title pdf-only">STL to 木取り図作成「きどりんfor CNC」　STLのファイル名：-</div>
+    <p>STLファイルをアップロードし、部品をドラッグ＆ドロップで配置してください。</p>
+  </div>
+</div>
+
+<div id="top-controls">
+  <input id="stl-input" type="file" accept=".stl">
+  <div id="zoom-controls">
+    <button id="zoom-in">Zoom +</button>
+    <button id="zoom-out">Zoom -</button>
+    <span id="help-text">　部品は，マウスでドラッグ。右クリック／ダブルタップで90度回転　</span>
+    <button id="view3d-button" type="button" class="help-btn" style="background-color: #007bff; color: white;">3D表示</button>
+    <button id="helpBtn" type="button" class="help-btn">ヘルプ</button>
+  </div>
+</div>
+
+<div id="settings-panel">
+  <!-- 1行目：数値入力 + 主要ボタン群 -->
+  <div class="board-settings">
+    <div class="input-group">
+      <label>板1の長さ (mm)</label>
+      <input id="board-length" type="number" value="900">
+    </div>
+    <div class="input-group">
+      <label>板1の幅 (mm)</label>
+      <input id="board-width" type="number" value="900">
+    </div>
+    <div class="input-group">
+      <label>部品の間隔 (mm)</label>
+      <input id="margin" type="number" value="20">
+    </div>
+
+    <!-- 1行目：板を追加〜SVG保存 -->
+    <div class="main-buttons">
+      <button id="add-board-button" type="button">板を追加</button>
+      <button id="update-layout-button" type="button">レイアウト初期化</button>
+      <button id="pdf-button" type="button">PDF表示</button>
+      <button id="svg-button" type="button" style="background-color: #6f42c1; color: white;">SVG保存</button>
+    </div>
+  </div>
+
+  <!-- 2行目：STL初期状態に戻す〜Gコード生成 -->
+  <div class="joint-buttons-row">
+    <button id="reset-stl-button" type="button" class="btn-reset">STL初期状態に戻す</button>
+    <button id="generate-joints-button" type="button" style="background-color: #28a745; color: white;">ジョイント生成</button>
+    <div class="tool-settings">
+      <label for="tool-diameter">ミル径(mm)</label>
+      <select id="tool-diameter" style="padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px; cursor:pointer; background:#fff;">
+        <option value="6">6 mm</option>
+        <option value="12">12 mm</option>
+      </select>
+      <label for="clearance-input" style="margin-left: 4px;">クリアランス(mm)</label>
+      <input id="clearance-input" type="number" value="0.2" step="0.1">
+      <button id="generate-tbone-button" type="button" style="background-color: #17a2b8; color: white; margin-left: 4px;">Tボーン作成</button>
+      <button id="generate-all-button" type="button" style="background-color: #ffc107; color: #333; margin-left: 4px; font-weight: bold;">ジョイント＆Tボーン一括生成</button>
+    </div>
+    <button id="tab-button" type="button" style="background-color: #e67e22 !important; color: white !important;">タブ設定</button>
+    <button id="gcode-button" type="button" style="background-color: #495057; color: white;">Mach2/3用Gコード生成</button>
+    <button id="gcode-viewer-button" type="button" style="background-color: #007bff; color: white;">Gコードビュワー</button>
+  </div>
+
+  <div id="extra-boards"></div>
+</div>
+
+<div id="svg-container">
+  <p>ここにSTLファイルをドロップするか、上のボタンから選択してください。</p>
+</div>
+
+<div id="boardInfo" class="board-info pdf-only"></div>
+
+<div id="learning-panels">
+  <div class="info-card">
+    <h2>板の歩留まり</h2>
+    <div id="yieldInfo" class="info-body">STLを読み込むと材料利用率が表示されます。</div>
+  </div>
+  <div class="info-card">
+    <h2>木目方向の注意</h2>
+    <div id="grainWarnings" class="info-body">縦長の部品の長い方向が木目方向と一致しないときに注意が表示されます。</div>
+  </div>
+  <div class="info-card bom-card">
+    <h2>部品リスト（BOM）</h2>
+    <div id="bomList" class="info-body">STLを読み込むと部品リストが表示されます。</div>
+  </div>
+</div>
+
+<!-- Gコードビュワー オーバーレイ -->
+<div id="gcode-viewer-overlay" style="display:none;">
+  <div class="gv-app">
+    <div class="gv-canvas-wrap">
+      <canvas id="gv-cv"></canvas>
+      <div class="gv-toolbar">
+        <button class="gv-tb-btn" id="gvTbZoomIn">＋ Zoom</button>
+        <button class="gv-tb-btn" id="gvTbZoomOut">－ Zoom</button>
+        <button class="gv-tb-btn active" id="gvTbPan">水平移動</button>
+        <button class="gv-tb-btn" id="gvTbRotate">回転</button>
+        <button class="gv-tb-btn" id="gvTbHome">HOME</button>
+      </div>
+      <div class="gv-canvas-info" id="gvInfoBox">G-Codeを読み込んでください</div>
+      <div class="gv-canvas-legend">
+        <div class="gv-legend-item"><div class="gv-legend-dot" style="background:rgba(0,210,255,.15)"></div>早送り</div>
+        <div class="gv-legend-item"><div class="gv-legend-dot" style="background:#ff6b35"></div>切削 1周目</div>
+        <div class="gv-legend-item"><div class="gv-legend-dot" style="background:#8a2a1f"></div>切削 2周目/深い</div>
+        <div class="gv-legend-item"><div class="gv-legend-dot" style="background:#ffd700;height:4px"></div><span id="gvLegendTabText">タブ</span></div>
+        <div class="gv-legend-item"><div class="gv-legend-dot" style="background:#fff3"></div>材料枠</div>
+      </div>
+    </div>
+    <div class="gv-report-area" id="gvReportArea"><div class="gv-rpt-title">▶ G-Codeを読み込むと評価レポートが表示されます</div></div>
+    <div class="gv-controls">
+      <div class="gv-ctrl-header"><h1>きどりん for CNC G-Codeビュワー <span class="gv-ver-badge">TAB HEIGHT EXACT v12</span></h1><p>最終周回タブ検出 / Z高さを実寸投影 / 6mm・12mm両対応</p>
+        <button id="gvLoadFileBtn" type="button" style="margin-top:8px; width:100%; padding:8px; background:#007bff; color:#fff; border:none; border-radius:5px; font-size:12px; font-weight:700; cursor:pointer;">📂 G-codeファイル読み込み</button>
+        <input type="file" id="gvFileInput" accept=".txt,.nc,.tap,.gcode,.cnc" style="display:none;">
+        <div id="gvBoardSelector" style="display:none; margin-top:6px;">
+          <label style="font-size:11px; color:#8899aa; margin-right:6px;">表示する板:</label>
+          <select id="gvBoardSelect" style="padding:5px 8px; background:#0a0a1a; border:1px solid #3a3a5a; border-radius:4px; color:#00d2ff; font-size:13px; font-weight:700; cursor:pointer;"></select>
+        </div>
+      </div>
+      <div class="gv-ctrl-section" id="gvMatSection" style="display:none"><div class="gv-ctrl-label">材料設定</div><div class="gv-stats-grid"><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatW">-</div><div class="gv-stat-lbl">幅 X (mm)</div></div><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatH">-</div><div class="gv-stat-lbl">奥行 Y (mm)</div></div><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatZ">-</div><div class="gv-stat-lbl">厚さ Z (mm)</div></div><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatLines">-</div><div class="gv-stat-lbl">総ステップ</div></div></div></div>
+      <div class="gv-ctrl-section" id="gvCodeInfoSection" style="display:none"><div class="gv-ctrl-label">加工情報 / TAB検出</div><div class="gv-stats-grid"><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatToolDia">-</div><div class="gv-stat-lbl">エンドミル直径</div></div><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatGFormat">-</div><div class="gv-stat-lbl">G-code Format</div></div><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatPass">-</div><div class="gv-stat-lbl">周回深さ</div></div><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatTabCount">-</div><div class="gv-stat-lbl">実タブ数</div></div><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatTabSize">-</div><div class="gv-stat-lbl">タブ 幅×高さ</div></div><div class="gv-stat-box"><div class="gv-stat-val" id="gvStatTabRaw">-</div><div class="gv-stat-lbl">TABコメント</div></div></div></div>
+      <div class="gv-ctrl-section" id="gvPlaySection" style="display:none"><div class="gv-ctrl-label">再生コントロール</div><div class="gv-btn-group"><button class="gv-btn gv-btn-primary" id="gvBtnPlay">▶ 開始</button><button class="gv-btn gv-btn-secondary" id="gvBtnReset">⟲ リセット</button></div><div class="gv-speed-row"><label>速度:</label><select id="gvSpeedSel"><option value="1">×1</option><option value="5">×5</option><option value="10" selected>×10</option><option value="50">×50</option><option value="200">×200</option><option value="1000">×1000</option></select></div></div>
+      <div class="gv-ctrl-section" id="gvSliderSection" style="display:none">
+        <div class="gv-ctrl-label">加工ステップ</div>
+        <div class="gv-slider-wrap"><input type="range" id="gvStepSlider" min="0" max="0" value="0"></div>
+        <div class="gv-step-display" id="gvStepDisplay">0 / 0</div>
+        <div class="gv-time-display" id="gvTimeDisplay">加工時間: 0:00 / 0:00</div>
+        <button id="gv-close-button" class="gv-btn gv-btn-close">ビュワー終了</button>
+      </div>
+      <div class="gv-gcode-list" id="gvGcodeList"></div>
+    </div>
+  </div>
+  <div class="gv-modal-overlay" id="gvThickModal"><div class="gv-modal"><h2>板の厚さを入力</h2><p>材料の厚さ (mm)</p><input type="number" id="gvThickInput" value="13.5" step="0.5" min="1"><button class="gv-btn gv-btn-primary" id="gvThickOk" style="margin-top:8px;width:auto;padding:9px 24px;">決定</button></div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+
+<script src="script.js"></script>
+<script src="gcode_viewer.js"></script>
+
+</body>
+</html>

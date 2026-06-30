@@ -1,0 +1,673 @@
+/*
+ * STL to 木取り図作成「きどりん」 by Mura-lab
+ * Copyright (c) 2026 Hiroyuki Muramatsu / Mura-lab
+ * https://gijyutu.com/main/
+ * Released under the MIT License
+ */
+
+body {
+    font-family: sans-serif;
+    padding: 0.8em 1.2em;
+    background-color: #f4f4f9;
+    color: #333;
+    text-align: center;
+    margin: 0;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+*, *::before, *::after { box-sizing: inherit; }
+
+#stl-input {
+    margin-bottom: 20px;
+}
+
+#svg-container {
+width: 100%;
+    max-width: none;
+    margin: 0 auto;
+    border: 2px dashed #ccc;
+    background-color: #fff;
+    min-height: 250px;
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 6px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    margin-bottom: 8px;
+    overflow: auto;
+    touch-action: none;
+}
+#svg-container svg { flex: 0 0 auto; overflow: visible; }
+
+
+svg {
+    width: auto;
+    height: auto;
+}
+
+
+#settings-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    background-color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 8px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.input-group label {
+    font-size: 12px;
+    margin-bottom: 4px;
+    color: #555;
+}
+
+.input-group input {
+    width: 100px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#settings-panel button {
+    padding: 8px 15px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    align-self: center;
+}
+
+#settings-panel button:hover {
+    background-color: #0056b3;
+}
+
+.board-rect {
+    stroke: #aaa;
+    stroke-width: 1;
+    stroke-dasharray: 5,5;
+    vector-effect: non-scaling-stroke;
+}
+
+@media print {
+    body { padding: 0; }
+    #settings-panel, #stl-input, h1, p { display: none; }
+    #svg-container { border: none; box-shadow: none; width: auto; max-width: none; }
+}
+
+
+g[data-x] { cursor: grab; }
+svg, #svg-container { user-select: none; }
+
+
+#zoom-controls { margin-bottom: 6px; }
+#zoom-controls button { padding: 6px 12px; margin: 0 6px; }
+svg { transform-origin: 0 0; }
+
+
+.button-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:10px;}
+#extra-boards{margin-top:10px;}
+.board-settings {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* 1行目：板を追加〜SVG保存 */
+.main-buttons {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: nowrap;
+}
+
+/* 2行目：STL初期状態〜Gコード生成 */
+.joint-buttons-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+
+#top-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  flex: 0 0 auto;
+}
+
+#zoom-controls button {
+  margin: 0 2px;
+}
+
+#extra-boards { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+
+#help-text{ margin-left:12px; font-size:12px; color:#0b57d0; font-weight:700; white-space:nowrap; }
+
+
+.input-inline{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+.input-inline button{align-self:center !important;}
+
+
+.layout-buttons{display:flex;flex-direction:row;gap:8px;align-items:flex-end;flex-wrap:wrap;}
+.input-inline{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+
+
+#title-row{display:flex;justify-content:center;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
+#title-row h1, #title-row p{margin:0;}
+
+
+.doc-title{margin:6px 0 10px 0;}
+.board-info{margin:10px 0; font-size:14px; line-height:1.5;}
+.board-info .board-row{margin:4px 0;}
+
+
+.pdf-only{display:none;}
+
+
+.help-btn{margin-left:8px; padding:4px 10px; font-size:14px; cursor:pointer;}
+
+
+#title-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;flex:0 0 auto;}
+.app-icon{width:110px;height:110px;object-fit:contain;border-radius:6px;}
+.title-text{display:flex;flex-direction:column;gap:4px;}
+@media (max-width: 640px){.app-icon{width:84px;height:84px;}}
+
+#settings-panel{margin-bottom:6px; flex:0 0 auto; padding:6px 10px; gap:4px;}
+
+#svg-container{margin-bottom:8px;}
+
+#learning-panels{margin-top:0;display:flex;flex-direction:row;gap:10px;align-items:stretch;flex-wrap:nowrap;flex:0 0 auto;max-height:140px;overflow:hidden;}
+
+.info-card{background:#fff;border-radius:10px;padding:10px 12px;box-shadow:0 2px 6px rgba(0,0,0,0.08);text-align:left;flex:1 1 0;min-width:0;max-height:140px;overflow-y:auto;}
+.info-card h2{font-size:16px;margin:0 0 10px 0;}
+.info-body{font-size:14px;line-height:1.6;}
+.info-body .sub{font-size:12px;color:#666;}
+.info-body ul{margin:8px 0 0 20px;padding:0;}
+.info-body li{margin:4px 0;}
+.warning-text{color:#b42318;font-weight:700;}
+.ok-text{color:#1f7a1f;font-weight:700;}
+.yield-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #e5e5e5;padding:4px 0;}
+.yield-row:last-child{border-bottom:none;}
+.yield-rate{font-weight:700;}
+.bom-list{display:flex;flex-direction:column;gap:8px;}
+.bom-item{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed #e5e5e5;}
+.bom-item:last-child{border-bottom:none;}
+.color-chip{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,0.2);flex:0 0 auto;}
+.bom-meta{display:flex;flex-direction:column;gap:2px;}
+.bom-name{font-weight:700;}
+.bom-count{font-size:12px;color:#555;}
+
+.board-settings{justify-content:flex-start;flex-wrap:wrap;}
+
+.part-no-badge{pointer-events:none;}
+.part-no-circle{stroke:#333;stroke-width:0.8;vector-effect:non-scaling-stroke;}
+.part-no-text{font-size:10px;font-weight:700;fill:#111;pointer-events:none;}
+.part-dim-text{font-size:10px;fill:#111;stroke:none;pointer-events:none;}
+.part-grain-tag{font-size:10px;fill:#b42318;font-weight:700;pointer-events:none;display:none;}
+.grain-warning .part-outline{stroke:#b42318;stroke-width:0.9;}
+.grain-warning .part-dim-text{fill:#b42318;font-weight:700;}
+.grain-warning .part-grain-tag{display:block;}
+.grain-warning .part-no-circle{stroke:#b42318;stroke-width:1.2;}
+.bom-table{width:100%;border-collapse:collapse;font-size:13px;}
+.bom-table th,.bom-table td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:middle;}
+.bom-table th{background:#f7f7f7;}
+.bom-table .count-cell{text-align:center;width:70px;}
+.bom-table .chip-cell{width:28px;}
+
+@media (max-width: 960px){
+  #learning-panels{flex-direction:column;}
+  .info-card{min-width:0;}
+}
+
+/* タブ設定ボタン */
+#tab-button {
+    background-color: #e67e22 !important;
+    color: white !important;
+    transition: background-color 0.2s ease;
+}
+#tab-button:hover {
+    background-color: #ca6f1e !important;
+}
+#tab-button.tab-mode-active {
+    background-color: #c0392b !important;
+    box-shadow: 0 0 0 3px rgba(192,57,43,0.4);
+    animation: tabPulse 1.5s infinite;
+}
+@keyframes tabPulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(192,57,43,0.4); }
+    50%       { box-shadow: 0 0 0 6px rgba(192,57,43,0.15); }
+}
+
+/* タブモード中のカーソル */
+#svg-container.tab-mode-cursor {
+    cursor: crosshair !important;
+}
+#svg-container.tab-mode-cursor * {
+    cursor: crosshair !important;
+}
+
+/* タブマーカー */
+.tab-marker {
+    pointer-events: all;
+    cursor: pointer;
+}
+
+/* ジョイント生成ボタン (元の色: #28a745) */
+#generate-joints-button {
+    transition: background-color 0.2s ease;
+}
+#generate-joints-button:hover {
+    background-color: #218838 !important;
+}
+
+/* Tボーン作成ボタン (元の色: #17a2b8) */
+#generate-tbone-button {
+    transition: background-color 0.2s ease;
+}
+#generate-tbone-button:hover {
+    background-color: #138496 !important;
+}
+
+/* ジョイント＆Tボーン一括生成ボタン (元の色: #ffc107) */
+#generate-all-button {
+    transition: background-color 0.2s ease;
+}
+#generate-all-button:hover {
+    background-color: #d39e00 !important;
+}
+
+/* SVG保存ボタン (元の色: #6f42c1) */
+#svg-button {
+    transition: background-color 0.2s ease;
+}
+#svg-button:hover {
+    background-color: #59359a !important;
+}
+
+/* STL初期状態に戻すボタン (赤系) */
+.btn-reset {
+    background-color: #dc3545 !important;
+    color: white !important;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+}
+.btn-reset:hover {
+    background-color: #bb2d3b !important;
+}
+
+/* Y軸反転時のテキスト表示補正 */
+#svg-container svg #content-flip text {
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scaleY(-1);
+}
+/* ================================================================
+   Gコードビュワー オーバーレイ
+   ================================================================ */
+#gcode-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: #1a1a2e;
+}
+.gv-app {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  grid-template-rows: 1fr auto;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+.gv-canvas-wrap {
+  position: relative;
+  background: #0d0d1a;
+  overflow: hidden;
+  grid-row: 1;
+  grid-column: 1;
+}
+.gv-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.gv-canvas-wrap canvas.dragging { cursor: grabbing; }
+.gv-canvas-wrap canvas.rotating { cursor: move; }
+
+.gv-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 4px;
+  z-index: 5;
+}
+.gv-tb-btn {
+  padding: 5px 10px;
+  border: 1px solid #3a3a5a;
+  border-radius: 5px;
+  background: rgba(15,52,96,.86);
+  color: #e0e0e0;
+  font-size: 12px;
+  cursor: pointer;
+}
+.gv-tb-btn:hover { background: rgba(30,80,140,.95); }
+.gv-tb-btn.active { background: #e94560; border-color: #e94560; }
+
+.gv-canvas-info {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: #00d2ff;
+  background: rgba(0,0,0,.68);
+  padding: 6px 10px;
+  border-radius: 5px;
+  pointer-events: none;
+  z-index: 4;
+  max-width: 55%;
+}
+.gv-canvas-legend {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: #8899aa;
+  background: rgba(0,0,0,.62);
+  padding: 6px 10px;
+  border-radius: 5px;
+  display: flex;
+  gap: 14px;
+  z-index: 4;
+  flex-wrap: wrap;
+}
+.gv-legend-item { display: flex; align-items: center; gap: 4px; }
+.gv-legend-dot { width: 14px; height: 3px; border-radius: 1px; }
+
+.gv-report-area {
+  grid-row: 2;
+  grid-column: 1;
+  background: #0f0f20;
+  border-top: 1px solid #2a2a4a;
+  max-height: 210px;
+  overflow: auto;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.62;
+  color: #e0e0e0;
+}
+.gv-rpt-title { font-weight: 700; color: #00d2ff; font-size: 13px; margin-bottom: 4px; }
+.gv-rpt-ok { color: #4ecdc4; }
+.gv-rpt-ng { color: #e94560; }
+.gv-rpt-warn { color: #ffd700; }
+.gv-rpt-row { display: flex; gap: 8px; align-items: baseline; }
+.gv-rpt-label { color: #8899aa; min-width: 185px; }
+
+.gv-controls {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  background: #16213e;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #2a2a4a;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+.gv-ctrl-header {
+  padding: 14px 18px;
+  background: #0f3460;
+  border-bottom: 1px solid #2a2a4a;
+}
+.gv-ctrl-header h1 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e94560;
+  letter-spacing: .3px;
+}
+.gv-ctrl-header p {
+  font-size: 10px;
+  color: #8899aa;
+  margin-top: 2px;
+}
+.gv-ver-badge { font-size: 10px; color: #ffd700; }
+
+.gv-ctrl-section {
+  padding: 10px 18px;
+  border-bottom: 1px solid #1a1a3a;
+}
+.gv-ctrl-label {
+  font-size: 10px;
+  color: #8899aa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+}
+.gv-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.gv-stat-box {
+  background: #0a0a1a;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+.gv-stat-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #00d2ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gv-stat-lbl { font-size: 9px; color: #8899aa; }
+
+.gv-btn-group { display: flex; gap: 6px; }
+.gv-btn {
+  flex: 1;
+  padding: 9px;
+  border: none;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.gv-btn-primary { background: #e94560; color: #fff; }
+.gv-btn-primary:hover { background: #c73a52; }
+.gv-btn-secondary {
+  background: #0f3460;
+  color: #e0e0e0;
+  border: 1px solid #3a3a5a;
+}
+.gv-btn-secondary:hover { background: #163d6f; }
+.gv-btn-close {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background: #007bff;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  flex: none;
+}
+.gv-btn-close:hover { background: #0056b3; }
+
+.gv-speed-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.gv-speed-row label { font-size: 10px; color: #8899aa; }
+.gv-speed-row select {
+  flex: 1;
+  padding: 4px 6px;
+  background: #0a0a1a;
+  border: 1px solid #3a3a5a;
+  border-radius: 3px;
+  color: #e0e0e0;
+  font-size: 11px;
+}
+
+.gv-slider-wrap input[type=range] {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #e94560 0%, #e94560 var(--pct,0%), #2a2a4a var(--pct,0%), #2a2a4a 100%);
+  outline: none;
+}
+.gv-slider-wrap input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e94560;
+  cursor: pointer;
+  border: 2px solid white;
+}
+.gv-step-display {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #00d2ff;
+  text-align: center;
+  margin-top: 3px;
+}
+.gv-time-display {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: #ffd700;
+  text-align: center;
+  margin-top: 4px;
+  padding: 4px 0;
+  background: #0a0a1a;
+  border-radius: 4px;
+}
+
+.gv-gcode-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0a0a14;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.65;
+}
+.gv-gc-line {
+  padding: 0 10px;
+  white-space: nowrap;
+  color: #556;
+  display: flex;
+}
+.gv-gc-line.active { background: #e94560; color: white; }
+.gv-gc-line.executed { color: #5a6a7a; }
+.gv-gc-line.is-move { color: #8899aa; }
+.gv-gc-line.is-comment { color: #4a6a4a; }
+.gv-gc-line.is-tab { color: #ffd700; font-weight: bold; }
+.gv-gc-num {
+  width: 50px;
+  text-align: right;
+  margin-right: 6px;
+  opacity: .5;
+  flex-shrink: 0;
+}
+.gv-gc-cmd { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+.gv-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9100;
+}
+.gv-modal-overlay.show { display: flex; }
+.gv-modal {
+  background: #16213e;
+  border-radius: 10px;
+  padding: 28px;
+  min-width: 300px;
+  text-align: center;
+  border: 1px solid #3a3a5a;
+  color: #e0e0e0;
+}
+.gv-modal h2 { font-size: 15px; margin-bottom: 10px; color: #00d2ff; }
+.gv-modal input {
+  width: 110px;
+  padding: 9px;
+  background: #0a0a1a;
+  border: 1px solid #3a3a5a;
+  border-radius: 5px;
+  color: #e0e0e0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 17px;
+  text-align: center;
+  margin: 6px 0;
+}
+.gv-modal p { font-size: 11px; color: #8899aa; }
+
+/* Gコードビュワーボタン */
+#gcode-viewer-button {
+  transition: background-color 0.2s ease;
+}
+#gcode-viewer-button:hover {
+  background-color: #0056b3 !important;
+}
+
+@media (max-width: 860px) {
+  .gv-app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 50vh auto auto;
+  }
+  .gv-controls {
+    grid-row: 3;
+    grid-column: 1;
+    border-left: none;
+    border-top: 1px solid #2a2a4a;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+  .gv-report-area {
+    grid-row: 2;
+    grid-column: 1;
+    max-height: 150px;
+  }
+}
