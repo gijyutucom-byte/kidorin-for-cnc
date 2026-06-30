@@ -4,6 +4,9 @@
 **STLファイルから木材の木取り図を自動生成し、CNC加工用Gコードまで一括出力できる、ブラウザで動作するWebアプリです。**
 
 > 制作：村松浩幸・西島直希・鈴木貴詞（2026）  
+> 村松 ギジュツドットコム　https://gijyutu.com/mian/
+> 鈴木 スズケン一級建築士事務所 https://suzuken.archi/
+> 正式公開
 > https://gijyutu.com/g-soft/vr-cnc/  
 > Released under the MIT License
 
