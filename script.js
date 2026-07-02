@@ -391,14 +391,16 @@ function open3dWindow() {
     #toolbar { display: none; }
   }
 
-  #close-btn, #reset-btn, #dim-btn {
+  #close-btn, #reset-btn, #dim-btn, #stl-export-btn, #glb-export-btn {
     position:absolute;top:10px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.1);
     color:#fff;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;transition:background 0.2s;
     z-index: 20;
   }
   #close-btn{right:14px;} #reset-btn{right:78px;}
-  #close-btn:hover, #reset-btn:hover, #dim-btn:hover {background:rgba(255,255,255,0.3);}
+  #close-btn:hover, #reset-btn:hover, #dim-btn:hover, #stl-export-btn:hover, #glb-export-btn:hover {background:rgba(255,255,255,0.3);}
   #dim-btn{right:152px;} #dim-btn.active{background:rgba(255,255,255,0.35);font-weight:700;}
+  #stl-export-btn{right:240px;background:rgba(40,167,69,0.5);border-color:rgba(40,167,69,0.3);}
+  #glb-export-btn{right:350px;background:rgba(111,66,193,0.5);border-color:rgba(111,66,193,0.3);}
   
   #info{
     position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
@@ -411,6 +413,8 @@ function open3dWindow() {
 <div id="toolbar"><span>左ドラッグ：回転 / 右：移動 / ホイール：ズーム</span></div>
 <button id="reset-btn" onclick="resetCamera()">リセット</button>
 <button id="dim-btn" onclick="toggleDimensions()">寸法表示</button>
+<button id="stl-export-btn" onclick="exportSTL()">STLエクスポート</button>
+<button id="glb-export-btn" onclick="exportGLB()">GLBエクスポート</button>
 <button id="close-btn" onclick="window.close()">閉じる</button>
 <div id="info"></div>
 
@@ -655,6 +659,168 @@ function toggleDimensions(){
     disposeDimensionGroup(dimGrp);
     dimGrp = null;
   }
+}
+
+// === STLエクスポート ===
+function exportSTL(){
+  var meshes = [];
+  group.traverse(function(o){ if(o.isMesh) meshes.push(o); });
+  if(meshes.length === 0){ alert('エクスポートするメッシュがありません'); return; }
+
+  var totalTris = 0;
+  meshes.forEach(function(m){
+    var pos = m.geometry.attributes.position;
+    var idx = m.geometry.index;
+    totalTris += idx ? idx.count / 3 : pos.count / 3;
+  });
+
+  var bufLen = 80 + 4 + totalTris * 50;
+  var buf = new ArrayBuffer(bufLen);
+  var dv = new DataView(buf);
+  var hdr = 'STL exported by Kidorin for CNC';
+  for(var i=0; i<80; i++) dv.setUint8(i, i < hdr.length ? hdr.charCodeAt(i) : 0);
+  dv.setUint32(80, totalTris, true);
+
+  var off = 84;
+  meshes.forEach(function(mesh){
+    var geo = mesh.geometry;
+    var pos = geo.attributes.position;
+    var idx = geo.index;
+    var triCount = idx ? idx.count / 3 : pos.count / 3;
+
+    for(var t=0; t<triCount; t++){
+      var i0 = idx ? idx.getX(t*3)   : t*3;
+      var i1 = idx ? idx.getX(t*3+1) : t*3+1;
+      var i2 = idx ? idx.getX(t*3+2) : t*3+2;
+
+      var ax=pos.getX(i0),ay=pos.getY(i0),az=pos.getZ(i0);
+      var bx=pos.getX(i1),by=pos.getY(i1),bz=pos.getZ(i1);
+      var cx=pos.getX(i2),cy=pos.getY(i2),cz=pos.getZ(i2);
+      var e1x=bx-ax, e1y=by-ay, e1z=bz-az;
+      var e2x=cx-ax, e2y=cy-ay, e2z=cz-az;
+      var nx=e1y*e2z-e1z*e2y, ny=e1z*e2x-e1x*e2z, nz=e1x*e2y-e1y*e2x;
+      var nl=Math.sqrt(nx*nx+ny*ny+nz*nz);
+      if(nl>0){nx/=nl;ny/=nl;nz/=nl;}
+
+      dv.setFloat32(off,nx,true); dv.setFloat32(off+4,ny,true); dv.setFloat32(off+8,nz,true); off+=12;
+      dv.setFloat32(off,ax,true); dv.setFloat32(off+4,ay,true); dv.setFloat32(off+8,az,true); off+=12;
+      dv.setFloat32(off,bx,true); dv.setFloat32(off+4,by,true); dv.setFloat32(off+8,bz,true); off+=12;
+      dv.setFloat32(off,cx,true); dv.setFloat32(off+4,cy,true); dv.setFloat32(off+8,cz,true); off+=12;
+      dv.setUint16(off,0,true); off+=2;
+    }
+  });
+
+  var blob = new Blob([buf], {type:'application/octet-stream'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (document.title.replace(/[^\w\u3000-\u9fff]/g,'_') || 'kidorin_export') + '.stl';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// === GLBエクスポート ===
+function exportGLB(){
+  var meshes = [];
+  group.traverse(function(o){ if(o.isMesh) meshes.push(o); });
+  if(meshes.length === 0){ alert('エクスポートするメッシュがありません'); return; }
+
+  var accessors=[], bufferViews=[], meshDefs=[], nodeDefs=[], materialDefs=[];
+  var binParts=[];
+  var byteOffset=0, accIdx=0, bvIdx=0;
+
+  meshes.forEach(function(mesh, mi){
+    var geo = mesh.geometry;
+    var pos = geo.attributes.position;
+    var norm = geo.attributes.normal;
+    var idx = geo.index;
+
+    // 位置
+    var posArr = new Float32Array(pos.count*3);
+    var pMin=[Infinity,Infinity,Infinity], pMax=[-Infinity,-Infinity,-Infinity];
+    for(var i=0;i<pos.count;i++){
+      var x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
+      posArr[i*3]=x; posArr[i*3+1]=y; posArr[i*3+2]=z;
+      pMin[0]=Math.min(pMin[0],x); pMin[1]=Math.min(pMin[1],y); pMin[2]=Math.min(pMin[2],z);
+      pMax[0]=Math.max(pMax[0],x); pMax[1]=Math.max(pMax[1],y); pMax[2]=Math.max(pMax[2],z);
+    }
+    var posBuf=new Uint8Array(posArr.buffer), posPad=(4-posBuf.byteLength%4)%4;
+    bufferViews.push({buffer:0,byteOffset:byteOffset,byteLength:posBuf.byteLength,target:34962});
+    accessors.push({bufferView:bvIdx,componentType:5126,count:pos.count,type:'VEC3',min:pMin,max:pMax});
+    var posAccIdx=accIdx; binParts.push(posBuf); if(posPad>0)binParts.push(new Uint8Array(posPad));
+    byteOffset+=posBuf.byteLength+posPad; accIdx++; bvIdx++;
+
+    // 法線
+    var normAccIdx=-1;
+    if(norm){
+      var normArr=new Float32Array(norm.count*3);
+      for(var i=0;i<norm.count;i++){normArr[i*3]=norm.getX(i);normArr[i*3+1]=norm.getY(i);normArr[i*3+2]=norm.getZ(i);}
+      var normBuf=new Uint8Array(normArr.buffer), normPad=(4-normBuf.byteLength%4)%4;
+      bufferViews.push({buffer:0,byteOffset:byteOffset,byteLength:normBuf.byteLength,target:34962});
+      accessors.push({bufferView:bvIdx,componentType:5126,count:norm.count,type:'VEC3'});
+      normAccIdx=accIdx; binParts.push(normBuf); if(normPad>0)binParts.push(new Uint8Array(normPad));
+      byteOffset+=normBuf.byteLength+normPad; accIdx++; bvIdx++;
+    }
+
+    // インデックス
+    var idxAccIdx=-1;
+    if(idx){
+      var use32=idx.count>65535||pos.count>65535;
+      var idxArr=use32?new Uint32Array(idx.count):new Uint16Array(idx.count);
+      for(var i=0;i<idx.count;i++)idxArr[i]=idx.getX(i);
+      var idxBuf=new Uint8Array(idxArr.buffer), idxPad=(4-idxBuf.byteLength%4)%4;
+      bufferViews.push({buffer:0,byteOffset:byteOffset,byteLength:idxBuf.byteLength,target:34963});
+      accessors.push({bufferView:bvIdx,componentType:use32?5125:5123,count:idx.count,type:'SCALAR'});
+      idxAccIdx=accIdx; binParts.push(idxBuf); if(idxPad>0)binParts.push(new Uint8Array(idxPad));
+      byteOffset+=idxBuf.byteLength+idxPad; accIdx++; bvIdx++;
+    }
+
+    // マテリアル
+    var c=mesh.material.color;
+    materialDefs.push({pbrMetallicRoughness:{baseColorFactor:[c.r,c.g,c.b,1.0],metallicFactor:mesh.material.metalness||0,roughnessFactor:mesh.material.roughness||0.9},doubleSided:true});
+
+    // メッシュ・ノード
+    var prim={attributes:{POSITION:posAccIdx},material:mi};
+    if(normAccIdx>=0)prim.attributes.NORMAL=normAccIdx;
+    if(idxAccIdx>=0)prim.indices=idxAccIdx;
+    meshDefs.push({primitives:[prim]});
+    nodeDefs.push({mesh:mi});
+  });
+
+  var rootIdx=nodeDefs.length;
+  nodeDefs.push({children:nodeDefs.map(function(_,i){return i;}),name:'kidorin_model'});
+
+  var gltf={
+    asset:{version:'2.0',generator:'Kidorin for CNC'},
+    scene:0, scenes:[{nodes:[rootIdx]}],
+    nodes:nodeDefs, meshes:meshDefs, materials:materialDefs,
+    accessors:accessors, bufferViews:bufferViews,
+    buffers:[{byteLength:byteOffset}]
+  };
+
+  var jsonStr=JSON.stringify(gltf);
+  var jsonPad=(4-(jsonStr.length%4))%4;
+  var jsonBuf=new TextEncoder().encode(jsonStr+' '.repeat(jsonPad));
+  var binPadLen=(4-(byteOffset%4))%4;
+  var totalLen=12+8+jsonBuf.byteLength+8+byteOffset+binPadLen;
+  var glb=new ArrayBuffer(totalLen);
+  var dv=new DataView(glb); var o=0;
+  dv.setUint32(o,0x46546C67,true);o+=4;
+  dv.setUint32(o,2,true);o+=4;
+  dv.setUint32(o,totalLen,true);o+=4;
+  dv.setUint32(o,jsonBuf.byteLength,true);o+=4;
+  dv.setUint32(o,0x4E4F534A,true);o+=4;
+  new Uint8Array(glb,o,jsonBuf.byteLength).set(jsonBuf);o+=jsonBuf.byteLength;
+  dv.setUint32(o,byteOffset+binPadLen,true);o+=4;
+  dv.setUint32(o,0x004E4942,true);o+=4;
+  for(var i=0;i<binParts.length;i++){new Uint8Array(glb,o,binParts[i].byteLength).set(binParts[i]);o+=binParts[i].byteLength;}
+  for(var i=0;i<binPadLen;i++)dv.setUint8(o++,0);
+
+  var blob=new Blob([glb],{type:'model/gltf-binary'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(document.title.replace(/[^\w\u3000-\u9fff]/g,'_')||'kidorin_export')+'.glb';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 animate();
